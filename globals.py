@@ -9,6 +9,5 @@ BLACK = 'B'
 
 ROWS = 8
 COLS = 8
-DEAD = [8, 8]
 
 pieceSquareMap = {}
