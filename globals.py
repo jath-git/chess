@@ -6,8 +6,13 @@ BISHOP = 'B'
 POND = 'P'
 WHITE = 'W'
 BLACK = 'B'
-
+ERROR = None
+SUCCESS = 1
 ROWS = 8
 COLS = 8
+NOT_SPECIAL = 0
+POND_PROMOTION = 1
+POND_PASSING = 2
+CASTLE = 3
 
 pieceSquareMap = {}
