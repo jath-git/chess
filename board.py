@@ -6,14 +6,15 @@ class Piece:
         self.piece = piece
         self.id = id
         self.movedTime = 0
+        self.moved = False
 
 class Board:
     def __init__(self):
         self.arr = [[None for j in range(COLS)] for i in range(ROWS)]
         self.copy = [[None for j in range(COLS)] for i in range(ROWS)]
         self.piecesMoved = 0
-        self.reset()
         self.toMove = WHITE
+        self.reset()
 
     def isPiece(self, positions, colour, piece):
         for r, c in positions:
@@ -26,9 +27,9 @@ class Board:
         pieceSquareMap[colour + piece + str(id)] = [r, c]
 
     def promote(self, newR, newC, newPiece):
-        pieceSquareMap[self.arr[newR][newC].colour + newPiece + str(self.arr[newR][newC].id)] = pieceSquareMap[self.arr[newR][newC].colour + POND + str(self.arr[newR][newC].id)]
-        del pieceSquareMap[self.arr[newR][newC].colour + POND + str(self.arr[newR][newC].id)]
         self.arr[newR][newC].piece = newPiece
+        pieceSquareMap[self.arr[newR][newC].colour + newPiece + str(self.arr[newR][newC].id)] = [newR, newC]
+        del pieceSquareMap[self.arr[newR][newC].colour + POND + str(self.arr[newR][newC].id)]
 
     def moveDirection(self, r, c, movementR, movementC, isLast):
         possible = []
@@ -63,12 +64,11 @@ class Board:
         if c - 1 >= 0 and self.arr[r + movement][c - 1]:
             possible.append([r + movement, c - 1])
 
-        #check if buggy
-        if c + 1 < COLS and self.arr[r][c + 1] and self.arr[r][c + 1].piece == POND and self.arr[r][c + 1].movedTime == self.piecesMoved:
+        #todo: check if buggy
+        if c + 1 < COLS and self.arr[r][c + 1] and self.arr[r][c + 1].piece == POND and self.arr[r][c + 1].colour != self.arr[r][c].colour and self.arr[r][c + 1].movedTime == self.piecesMoved:
             possible.append([r + movement, c + 1])
-        if c - 1 >= 0 and self.arr[r][c - 1] and self.arr[r][c - 1].piece == POND and self.arr[r][c - 1].movedTime == self.piecesMoved:
+        if c - 1 >= 0 and self.arr[r][c - 1] and self.arr[r][c - 1].piece == POND and self.arr[r][c - 1].colour != self.arr[r][c].colour and self.arr[r][c - 1].movedTime == self.piecesMoved:
             possible.append([r + movement, c - 1])
-
         return possible
 
     def permutations(self, arr):
@@ -93,7 +93,6 @@ class Board:
             if p[0] >= 0 and p[1] >= 0 and p[0] < ROWS and p[1] < COLS:
                 if (not self.arr[p[0]][p[1]] or self.arr[p[0]][p[1]].colour != self.arr[r][c].colour):
                     final.append(p)
-
         return final
         
     def moveKing(self, r, c):
@@ -115,7 +114,6 @@ class Board:
                 final.append([r, 2])
             if self.arr[r][COLS - 1] and self.arr[r][COLS - 1].piece == ROOK and self.arr[r][COLS - 1].movedTime == 0 and not self.arr[r][6] and not self.arr[r][5]:
                 final.append([r, 6])
-
         return final
 
     def moveRook(self, r, c, isLast):
@@ -128,12 +126,12 @@ class Board:
         return possible
 
     def print(self):
-        printType = ''
-        if printType == 'id':
+        printType = 'x'
+        if printType[0] == 'i':
             for i in range(ROWS):
                 for j in range(COLS):
                     self.copy[i][j] = self.arr[i][j].id if self.arr[i][j] else 0
-        elif printType == 'colour':
+        elif printType[0] == 'c':
             for i in range(ROWS):
                 for j in range(COLS):
                     self.copy[i][j] = self.arr[i][j].colour if self.arr[i][j] else ' '
@@ -142,8 +140,14 @@ class Board:
                 for j in range(COLS):
                     self.copy[i][j] = self.arr[i][j].piece if self.arr[i][j] else ' '
 
+        letterLabel = ''
+        for i in range(COLS):
+            letterLabel += '    '
+            letterLabel += chr(ord('A') + i)
+        print(letterLabel)
+
         for i in range(ROWS):
-            print(self.copy[i])
+            print(i + 1, self.copy[i])
 
     def reset(self):
         for i in range(COLS):
@@ -171,42 +175,61 @@ class Board:
         self.place(0, 4, BLACK, KING, 0)
         self.place(COLS - 1, 4, WHITE, KING, 0)
 
-    def move(self, r, c, newR, newC):
-        if not self.arr[r][c] or self.arr[r][c].colour != self.toMove or [newR, newC] not in self.possibleMove(r, c):
-            return
-        self.piecesMoved += 1
+    def whichSpecialCase(self, r, c, newR, newC, current):
+        if current.piece == POND and (newR == 0 or newR == 7):
+            return POND_PROMOTION
+        if current.piece == POND and c != newC:
+            return POND_PASSING
+        if current.piece == KING and abs(c - newC) == 2:
+            return CASTLE
+        return NOT_SPECIAL
 
-        if self.arr[newR][newC]:
-            del pieceSquareMap[self.arr[newR][newC].colour + self.arr[newR][newC].piece + str(self.arr[newR][newC].id)]
-            self.arr[newR][newC] = None
-        elif self.arr[r][c].piece == POND and c != newC:
+    def specialMove(self, r, c, newR, newC, current):
+        if current.piece == POND and (newR == 0 or newR == 7):
+            self.promote(newR, newC, QUEEN)
+        if current.piece == POND and c != newC:
             del pieceSquareMap[self.arr[r][newC].colour + self.arr[r][newC].piece + str(self.arr[r][newC].id)]
             self.arr[r][newC] = None
 
-        self.place(newR, newC, self.arr[r][c].colour, self.arr[r][c].piece, self.arr[r][c].id)
-        
-        if self.arr[newR][newC].piece == POND:
-            if newR == 0:
-                self.promote(newR, newC, QUEEN)
-
-        if self.arr[newR][newC].piece == KING:
+        if current.piece == KING:
             if newC + 2 == c:
-                self.place(newR, 3, self.arr[newR][0].colour, self.arr[newR][0].piece, self.arr[newR][0].id)
+                self.arr[newR][3] = self.arr[newR][0]
+                pieceSquareMap[self.arr[newR][0].colour + self.arr[newR][0].piece + str(self.arr[newR][0].id)] = [newR, 3]
                 self.arr[newR][0] = None
             elif c + 2 == newC:
-                self.place(newR, 5, self.arr[newR][7].colour, self.arr[newR][7].piece, self.arr[newR][7].id)
+                self.arr[newR][5] = self.arr[newR][7]
+                pieceSquareMap[self.arr[newR][7].colour + self.arr[newR][7].piece + str(self.arr[newR][7].id)] = [newR, 5]
                 self.arr[newR][7] = None
 
+    def move(self, r, c, newR, newC):
+        if not self.arr[r][c] or self.arr[r][c].colour != self.toMove or [newR, newC] not in self.possibleMove(r, c):
+            return ERROR
+            
+        self.piecesMoved += 1
 
-        if (self.arr[newR][newC].piece == POND and abs(r - newR) == 2) or self.arr[newR][newC].piece == KING or self.arr[newR][newC].piece == ROOK:
-            self.arr[newR][newC].movedTime = self.piecesMoved
-        
-        self.arr[r][c] = None
+        current = self.arr[r][c]
+        taken = self.arr[newR][newC]
+
+        if (current.piece == POND and abs(r - newR) == 2) or current.piece == KING or current.piece == ROOK:
+            current.movedTime = self.piecesMoved
+        current.moved = True
         self.toMove = WHITE if self.toMove == BLACK else BLACK
+
+        self.arr[newR][newC] = current
+        pieceSquareMap[current.colour + current.piece + str(current.id)] = [newR, newC]
+        self.arr[r][c] = None
+
+        if taken:
+            del pieceSquareMap[taken.colour + taken.piece + str(taken.id)]
+
+        if self.whichSpecialCase(r, c, newR, newC, current) != NOT_SPECIAL:
+            self.specialMove(r, c, newR, newC, current)
+        return SUCCESS
 
     def possibleMove(self, r, c):
         if not self.arr[r][c]:
-            return
+            return []
+            
         colour = self.arr[r][c].colour
 
         possible = []
@@ -224,29 +247,59 @@ class Board:
             possible = self.movePond(r, c)
 
         final = []
-        fromColour = self.arr[r][c].colour
-        fromPiece = self.arr[r][c].piece
-        fromId = self.arr[r][c].id
+        current = self.arr[r][c]
+        oldCurrentMoved = current.moved
+        oldMovedTime = current.movedTime
+        self.piecesMoved += 1
+        self.toMove = WHITE if self.toMove == BLACK else BLACK
+
         for newR, newC in possible:
+            if (current.piece == POND and abs(r - newR) == 2) or current.piece == KING or current.piece == ROOK:
+                current.movedTime = self.piecesMoved
+
             taken = self.arr[newR][newC]
-            self.place(newR, newC, fromColour, fromPiece, fromId)
+            self.arr[newR][newC] = current
+            pieceSquareMap[current.colour + current.piece + str(current.id)] = [newR, newC]
             self.arr[r][c] = None
             if taken:
                 del pieceSquareMap[taken.colour + taken.piece + str(taken.id)]
+            specialCase = self.whichSpecialCase(r, c, newR, newC, current)
+
+            if specialCase != NOT_SPECIAL:
+                self.specialMove(r, c, newR, newC, current)
 
             if not self.inCheck(colour):
                 final.append([newR, newC])
 
-            self.place(r, c, fromColour, fromPiece, fromId)
+            self.arr[newR][newC] = taken
+            self.arr[r][c] = current
+            pieceSquareMap[current.colour + current.piece + str(current.id)] = [r, c]
             if taken:
-                self.place(newR, newC, taken.colour, taken.piece, taken.id)
-            else:
-                self.arr[newR][newC] = None
-        
+                pieceSquareMap[taken.colour + taken.piece + str(taken.id)] = [newR, newC]
+            
+            if specialCase == POND_PROMOTION:
+                current.piece = POND
+            if specialCase == CASTLE:
+                if not self.arr[newR][newC - 1]:
+                    self.arr[newR][0] = self.arr[newR][newC + 1]
+                    self.arr[newR][newC + 1] = None
+                    pieceSquareMap[self.arr[newR][0].colour + self.arr[newR][0].piece + str(self.arr[newR][0].id)] = [newR, 0]
+                else:
+                    self.arr[newR][COLS - 1] = self.arr[newR][newC - 1]
+                    self.arr[newR][newC - 1] = None
+                    pieceSquareMap[self.arr[newR][COLS - 1].colour + self.arr[newR][COLS - 1].piece + str(self.arr[newR][COLS - 1].id)] = [newR, COLS - 1]
+            # if specialCase == POND_PASSING:
+            #     self.place(r, newC, WHITE if self.arr[r][c] == BLACK else BLACK, POND, newC + 1)
+
+            current.movedTime = oldMovedTime
+
+        current.moved = oldCurrentMoved
+        self.piecesMoved -= 1
+        self.toMove = WHITE if self.toMove == BLACK else BLACK
         return final
 
     def inCheck(self, colour):
-        kingRow, kingCol = pieceSquareMap.get(colour + KING + str(0))
+        kingRow, kingCol = pieceSquareMap[colour + KING + str(0)]
         pondDirection = 1 if colour == BLACK else -1
         if self.isPiece([[kingRow + pondDirection, kingCol + 1], [kingRow + pondDirection, kingCol - 1]], colour, POND):
             return True
@@ -264,11 +317,10 @@ class Board:
             return True
         if self.isPiece(possible, colour, QUEEN):
             return True
-
         return False
     
     def inStaleMate(self, colour):
-        for key in pieceSquareMap:
+        for key in list(pieceSquareMap.keys()):
             if key[0] == colour:
                 r, c = pieceSquareMap[key]
                 if self.possibleMove(r, c) != []:
