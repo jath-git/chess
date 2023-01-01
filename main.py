@@ -1,7 +1,14 @@
 from board import *
 from globals import *
 
+arr = ['E7', 'E5', 'A2', 'A3', 'E5', 'E4', 'F2', 'F4']
+board = Board()
+
 def getRowCol():
+    if len(arr) > 0:
+        x = arr.pop(0)
+        return [ord(x[0]) - ord('A'), ord(x[1]) - ord('1')]
+
     read = input()
     if len(read) != 2:
         print('TRY AGAIN: Coordinate must have length of 2')
@@ -19,19 +26,7 @@ def getRowCol():
     return [ord(read[0]) - ord('A'), ord(read[1]) - ord('1')]
 
 def main():
-    board = Board()
-    board.move(6, 4, 4, 4)
-    board.move(1, 0, 2, 0)
-    board.move(7, 3, 5, 5)
-    board.move(2, 0, 3, 0)
-    board.move(7, 5, 4, 2)
-    board.move(3, 0, 4, 0)
-    board.move(5, 5, 1, 5)
-    print(board.inCheckMate(BLACK))
-    board.print()
-    return 1
     while True:
-        print('------------------BOARD------------------')
         board.print()
         player = 1 if board.toMove == WHITE else 2
         otherPlayer = 1 if player == 2 else 2
@@ -52,6 +47,11 @@ def main():
             print('TRY AGAIN: no piece in coordinate')
         if board.arr[row][col].colour != board.toMove:
             print(f'TRY AGAIN: not player {player} piece')
+        board.possible[row][col] = 1
+        possibleMoves = board.possibleMove(row, col)
+        for r, c in possibleMoves:
+            board.possible[r][c] = 2
+        board.print()
         print(f'PLAYER {player}: select destination')
         rowCol = getRowCol()
         if not rowCol:
